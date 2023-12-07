@@ -1,4 +1,4 @@
-# Text-Formula-Mixer OCR
+# math2latex
 
 ## Environment
 
