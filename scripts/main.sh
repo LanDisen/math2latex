@@ -1,0 +1,11 @@
+python -u main.py \
+    --batch_size 256 \
+    --n_epochs 10 \
+    --lr 0.01 \
+    --model "ResnetTransformer" \
+    --dim 256 \
+    --n_layers 4 \
+    --n_heads 4 \
+    --img_size 224 \
+    --dropout 0.2 \
+    --seed 2023
