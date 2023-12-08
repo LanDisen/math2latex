@@ -88,7 +88,7 @@ class Model(nn.Module):
         self.n_heads = args.n_heads
         self.max_len = args.max_len
         self.n_layers = args.n_layers
-        self.vocab = build_vocab("./data_preprocess/vocab.txt")
+        self.vocab = build_vocab(args.vocab_path)
         self.num_classes = len(self.vocab)
         self.encoder = Encoder(self.dim, args.dropout)
         self.decoder = Decoder(self.dim, self.n_heads, n_layers=self.n_layers, 

@@ -356,6 +356,7 @@ Z
 \uparrow
 \upsilon
 \varepsilon
+\varnothing
 \varphi
 \varpi
 \varrho

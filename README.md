@@ -32,7 +32,25 @@ First, download the datasets in the `dataset` dir, and modify the dir name:
 If you want to train the model:
 
 ```sh
-nohup ./scripts/main.py > log.txt &
+python -u main.py \
+    --task "pure" \ # options: ["pure", "mix"]
+    --batch_size 64 \
+    --n_epochs 30 \
+    --lr 0.001 \
+    --model "ResnetTransformer" \
+    --dim 256 \
+    --n_layers 3 \
+    --n_heads 4 \
+    --img_size 224 \
+    --dropout 0.2 \
+    --seed 2023 
+```
+
+or run the script:
+
+```sh
+nohup ./scripts/pure.py > pure_log.txt &
+# nohup ./scripts/mix.py > mix_log.txt & # for mix dataset
 ```
 
 If you want to sample an image for testing(you should modify the image path in the src code):
@@ -42,12 +60,9 @@ python main.py --sample True
 ```
 
 Remember modify the settings like `batch_size` in `scripts/main.sh`
+
 If you failed to run the script, maybe you should:
 
 ```sh
 chmod -R 777 scripts/main.sh
 ```
-
-## TODO
-
-- [ ] YOLO for math formula detection

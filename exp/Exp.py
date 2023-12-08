@@ -6,13 +6,14 @@ from torchvision import transforms, datasets, models
 from torchvision.datasets import ImageFolder
 from PIL import Image
 import numpy as np
+import matplotlib.pyplot as plt
 import math
 import os
 import time
 import warnings
 from data_loader import ImageLabelDataset, get_data_loader
 from data_preprocess.build_vocab import build_vocab
-from utils.utils import remove_ignored
+from utils.utils import remove_ignored, adjust_lr
 from utils.metrics import bleu_score, exact_match_score, edit_distence, overall_score
 from models import ResnetTransformer
 
@@ -20,32 +21,42 @@ warnings.filterwarnings('ignore')
 
 class Exp:
     def __init__(self, args):
-        self.args = args
+        self.args = args 
+        # add models
         self.model_dict = {
             "ResnetTransformer": ResnetTransformer
         }
-        self.vocab = build_vocab("./data_preprocess/vocab.txt")
+        self.vocab = build_vocab(args.vocab_path)
+        with open(args.vocab_path, 'r', encoding='utf-8') as f:
+            self.latex = f.read().split()
         self.device = args.device
         self.model = self.model_dict[args.model].Model(self.args).to(self.device)
-        train_mean = 0.941592
-        train_std = 0.166602
+        if args.task == "pure":
+            train_mean = 0.930882
+            train_std = 0.178370
+        elif args.task == "mix":
+            train_mean = 0.917530
+            train_std = 0.188238
         self.transform = transforms.Compose([
-            # transforms.RandomCrop(224, pad_if_needed=True), # padding
-            transforms.Resize((args.img_size, args.img_size)),
+            transforms.Resize((args.img_size, args.img_size), interpolation=Image.BICUBIC),
             transforms.ToTensor(),
             transforms.Normalize(train_mean, train_std),
         ])
         # data loader
+        dataset_path = "./dataset/data_" + args.task + "/"
         self.train_loader = get_data_loader(
-            ImageLabelDataset("./dataset/data_pure/", 
-                              self.transform, self.vocab, flag="train"),
+            ImageLabelDataset(dataset_path, 
+                              self.transform, self.vocab, self.latex,
+                              flag="train"),
             batch_size=args.batch_size)
         self.dev_loader = get_data_loader(
-            ImageLabelDataset("./dataset/data_pure/",
-                              self.transform, self.vocab,
+            ImageLabelDataset(dataset_path,
+                              self.transform, self.vocab, self.latex,
                               flag="dev"),
             batch_size=args.batch_size)
-        self.test_loader = None
+        # self.test_loader = get_data_loader(
+        #     ImageLabelDataset(dataset_path, self.transform, self.vocab, self.latex, "test"),
+        #     batch_size=1)
 
     # train, dev, test
     def dev(self):
@@ -110,10 +121,11 @@ class Exp:
         print("train data size:", self.train_loader.__len__() * batch_size)
         print("dev data size:", self.dev_loader.__len__() * batch_size)
         print("train start")
-        vocab = build_vocab("./data_preprocess/vocab.txt")
+        vocab = self.vocab
         # print("test data size:", len(test_loader))
         optimizer = optim.Adam(self.model.parameters(), lr=lr) # 优化器
         loss_func = nn.CrossEntropyLoss(ignore_index=vocab('<pad>')) # 损失函数
+        epoch_losses = []
         self.model.train()
         for epoch in range(1, n_epochs + 1):
             train_loss = []
@@ -135,24 +147,35 @@ class Exp:
             
             epoch_time = time.time() - start_time
             avg_loss = np.average(train_loss)
-            print(f"\tepoch: {epoch} over, time: {epoch_time}, train loss: {avg_loss:.6f}")
+            epoch_losses.append(avg_loss)
+            print(f"\tepoch: {epoch} over, time: {epoch_time:.6f}, train loss: {avg_loss:.6f}")
+            # adjust_lr(optimizer, epoch, self.args) # 根据epoch调整学习率
 
             # test_loss, test_metrics = dev(self.model, self.device, test_loader)
             # print(f"epoch: {epoch}, train loss: {avg_loss}, dev loss: {dev_loss}, test loss: {test_loss}")
 
         print("train end")
-        # 保存模型参数
+        # save loss
+        loss_dir = "./img/loss/" + self.args.setting
+        if not os.path.exists(loss_dir):
+            os.makedirs(loss_dir)
+        plt.xlabel("epoch")
+        plt.ylabel("loss")
+        plt.plot(range(1, n_epochs + 1), epoch_losses)
+        plt.savefig(loss_dir + "/loss.png")
+        # save model's parameters
         print("saving model...")
         # TODO early stopping
         # if self.verbose:
         #     print(f'Validation loss decreased ({self.val_loss_min:.6f} --> {val_loss:.6f}).  Saving model ...')
         #     torch.save(model.state_dict(), path + '/' + 'checkpoint.pth')
-        checkpoint_path = "./checkpoints/" + "model.pth"
-        # if not os.path.exists(checkpoint_path):
-        #     os.makedirs(checkpoint_path)
+        checkpoint_dir = "./checkpoints/" + self.args.setting
+        if not os.path.exists(checkpoint_dir):
+            os.makedirs(checkpoint_dir)
+        checkpoint_path = checkpoint_dir + "/model.pth"
         torch.save(self.model.state_dict(), checkpoint_path)
         # 验证集dev
-        dev_loss, dev_metrics = self.dev()
+        dev_loss, dev_metrics = self.dev() # 后续改为每10个epoch验证一次
 
     def test(self):
         # TODO 未完全实现，暂时没用
@@ -160,7 +183,7 @@ class Exp:
         # loss_func = nn.CrossEntropyLoss() # 损失函数
         data_loader = get_data_loader(ImageLabelDataset("./dataset/data_pure/", "test"),
                                     batch_size=1)
-        vocab = build_vocab("./data_preprocess/vocab.txt")
+        vocab = self.vocab
         ignored = [vocab('<start>'), vocab('<unk>'), vocab('<end>'), vocab('<pad>')]
         preds = []
         trues = []
@@ -174,11 +197,6 @@ class Exp:
                 preds.append(outputs.detach())
                 trues.append(labels)
 
-        # preds = torch.cat(preds, 0)
-        # trues = torch.cat(trues, 0)
-        # probs = torch.nn.functional.softmax(preds)
-        # predictions = torch.argmax(probs, dim=1).cpu().numpy()
-        # trues = trues.flatten().cpu().numpy()
         print(f"test time: {time.time() - start_time}")
         predictions = [self.model.tokens(pred, vocab) for pred in preds]
         trues = [self.model.tokens(label, vocab) for label in trues]
@@ -197,12 +215,12 @@ class Exp:
                    self.vocab('<unk>'), 
                    self.vocab('<end>'), 
                    self.vocab('<pad>')] # 忽略的词
-        checkpoint_path = './checkpoints/' + 'model.pth'
+        checkpoint_path = './checkpoints/' + self.args.setting + '/model.pth'
         self.model.load_state_dict(torch.load(checkpoint_path))
         # 0: a_n, 3: x^2 + y^2 -
         # 2: a_{k+1}+..., 4: 6y+5=0, 16: DC=2BD
         # image_path = "./dataset/data_pure/train/images/" + "3.png" 
-        image_path = "./dataset/data_pure/test/images/" + "16.png"
+        image_path = "./dataset/data_pure/test/images/" + "2.png"
         image = Image.open(image_path).convert("L")
         image = self.transform(image)
         self.model.eval()
