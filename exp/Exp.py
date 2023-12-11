@@ -86,13 +86,13 @@ class Exp:
                 for label in labels:
                     trues.append(label)
                 # iteration
-                # if (i + 1) % 20 == 0:
-                print(f"\titer: {i + 1}, speed: {(time.time() - start_time) / (i + 1):.6f}s/iter")
+                if (i + 1) % 100 == 0:
+                    print(f"\titer: {i + 1}, speed: {(time.time() - start_time) / (i + 1):.6f}s/iter")
                 # preds.append(pred.detach())
                 # trues.append(labels)
-                # FIXME temp
-                if i + 1 >= 3: 
-                    break
+                # temp
+                # if i + 1 >= 3: 
+                #     break
         print(f"dev time: {time.time() - start_time}")
         avg_loss = np.average(total_loss)
         predictions = [self.model.tokens(pred, self.vocab) for pred in preds]
@@ -142,7 +142,9 @@ class Exp:
                 loss.backward()
                 optimizer.step()
                 train_loss.append(loss.item())
-                if (i + 1) % 10 == 0:
+                if self.args.task == "pure" and (i + 1) % 10 == 0:
+                    print(f"\titer: {i + 1}, loss: {loss.item():.6f}, speed: {(time.time() - start_time) / (i + 1):.6f}s/iter")
+                elif self.args.task == "mix" and (i + 1) % 100 == 0:
                     print(f"\titer: {i + 1}, loss: {loss.item():.6f}, speed: {(time.time() - start_time) / (i + 1):.6f}s/iter")
             
             epoch_time = time.time() - start_time
@@ -178,36 +180,40 @@ class Exp:
         dev_loss, dev_metrics = self.dev() # 后续改为每10个epoch验证一次
 
     def test(self):
-        # TODO 未完全实现，暂时没用
-        print("test start")
-        # loss_func = nn.CrossEntropyLoss() # 损失函数
-        data_loader = get_data_loader(ImageLabelDataset("./dataset/data_pure/", "test"),
-                                    batch_size=1)
+        # data_loader = get_data_loader(ImageLabelDataset("./dataset/data_pure/", "test"),
+        #                             batch_size=1)
+        test_image_dir = "./dataset/data_" + self.args.task + "/test/images"
+        test_label_dir = "./dataset/data_" + self.args.task + "/test/labels/"
+        images = sorted(os.listdir(test_image_dir))
         vocab = self.vocab
         ignored = [vocab('<start>'), vocab('<unk>'), vocab('<end>'), vocab('<pad>')]
         preds = []
-        trues = []
+        checkpoint_path = './checkpoints/' + self.args.setting + '/model.pth'
+        self.model.load_state_dict(torch.load(checkpoint_path)) # load model
         self.model.eval()
+        print("test start")
         start_time = time.time()
         with torch.no_grad():
-            for i, (images, labels, lengths) in enumerate(data_loader):
-                images = images.float().to(self.device)
-                labels = labels.to(self.device)
-                outputs = self.model(images, labels, lengths)
-                preds.append(outputs.detach())
-                trues.append(labels)
-
+            i = 0
+            for fname in images:
+                image = Image.open(test_image_dir + "/" + fname).convert("L")
+                image = self.transform(image).float().to(self.device)
+                image = image.unsqueeze(0) # [B=1, C=1, H, W]
+                pred = self.model.predict(image)
+                pred = remove_ignored(pred, ignored) # 去除<start>等
+                # type(pred)=list [B=1, L(不等长)]
+                tokens = self.model.tokens(pred[0], self.vocab)
+                # tokens写入文件
+                idx = fname.split(".")[0]
+                with open(test_label_dir + idx + ".txt", "w", encoding="utf-8") as f:
+                    for token in tokens:
+                        f.write(token)
+                        # if token == "\\\\":
+                        #     f.write("\n")
+                i += 1
+                if i % 1000 == 0:
+                    print(f"\titer: {i}, speed: {(time.time() - start_time) / i:.6f}s/iter")
         print(f"test time: {time.time() - start_time}")
-        predictions = [self.model.tokens(pred, vocab) for pred in preds]
-        trues = [self.model.tokens(label, vocab) for label in trues]
-        score1 = bleu_score(trues, predictions)
-        score2 = edit_distence(trues, predictions)
-        score3 = exact_match_score(trues, predictions)
-        overall = (score1 + score2 + score3) / 3
-        print(f"bleu_score: {score1}")
-        print(f"edit_distence: {score2}")
-        print(f"exact_match_score: {score3}")
-        print(f"overall_score: {overall}")
         print("test end")
 
     def sample(self):
@@ -220,7 +226,8 @@ class Exp:
         # 0: a_n, 3: x^2 + y^2 -
         # 2: a_{k+1}+..., 4: 6y+5=0, 16: DC=2BD
         # image_path = "./dataset/data_pure/train/images/" + "3.png" 
-        image_path = "./dataset/data_pure/test/images/" + "2.png"
+        # image_path = "./dataset/data_pure/test/images/" + "2.png"
+        image_path = "./dataset/data_mix/test/images/" + "353.png"
         image = Image.open(image_path).convert("L")
         image = self.transform(image)
         self.model.eval()
@@ -232,5 +239,6 @@ class Exp:
             tokens = self.model.tokens(pred[0], self.vocab)
             sentence = ""
             for token in tokens:
-                sentence += token + " "
+                # token间不加空格
+                sentence += token
             print(sentence)

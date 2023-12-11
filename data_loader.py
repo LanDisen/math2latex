@@ -12,6 +12,29 @@ from PIL import Image
 import nltk
 from data_preprocess.build_vocab import build_vocab
 
+def FMM_func(user_dict, sentence):
+    """
+    正向最大匹配（FMM）
+    :param user_dict: 词典
+    :param sentence: 句子
+    """
+    # 词典中最长词长度
+    max_len = max([len(item) for item in user_dict])
+    start = 0
+    token_list = []
+    while start != len(sentence):
+        index = start+max_len
+        if index>len(sentence):
+            index = len(sentence)
+        for i in range(max_len):
+            if (sentence[start:index] in user_dict) or (len(sentence[start:index])==1):
+                token_list.append(sentence[start:index])
+                # print(sentence[start:index], end='/')
+                start = index
+                break
+            index += -1
+    return token_list
+
 class ImageLabelDataset(Dataset):
     '''
     加载图片数据集
@@ -19,7 +42,7 @@ class ImageLabelDataset(Dataset):
         path: 数据集存放的路径
         flag: 数据加载类型(训练集、验证集、测试集)
     '''
-    def __init__(self, path, transform, vocab, flag="train"):
+    def __init__(self, path, transform, vocab, latex, flag="train"):
         super().__init__()
         self.path = path
         self.flag = flag # 训练, 验证或测试
@@ -27,8 +50,7 @@ class ImageLabelDataset(Dataset):
         self.labels = sorted(os.listdir(path + flag + "/labels"))
         # 词表
         self.vocab = vocab
-        with open('./data_preprocess/vocab.txt', 'r', encoding='utf-8') as f:
-            self.latex = f.read().split()
+        self.latex = latex
         # 预处理
         # train_mean = 0.941592
         # train_std = 0.166602
@@ -48,14 +70,20 @@ class ImageLabelDataset(Dataset):
         返回图片以及对应的文字公式混合LaTeX文本标签
         '''
         images = Image.open(self.path + self.flag + "/images/" + self.images[index]).convert("L")
+        # images = images.resize((Image.ANTIALIAS))
         images = self.transform(images)
         # 图片归一化处理
         with open(self.path + self.flag + "/labels/" + self.labels[index]) as f:
-            labels = f.readline()
+            # 分段函数有多行
+            # labels = f.readline()
+            l = [line.strip() for line in f.readlines()] # 去除所有的"\n"
+        labels = ""
+        for line in l:
+            labels += line
         # 文本labels转tensor
         # nltk.download('punkt')
-        tokens = nltk.tokenize.word_tokenize(labels) # 分词
-        # tokens = FMM_func(self.latex, labels)
+        # tokens = nltk.tokenize.word_tokenize(labels) # 分词
+        tokens = FMM_func(self.latex, labels)
         label_ids = []
         label_ids.append(self.vocab('<start>'))
         label_ids.extend([self.vocab(token) for token in tokens])

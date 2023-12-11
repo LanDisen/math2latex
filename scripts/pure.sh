@@ -1,6 +1,6 @@
 python -u main.py \
     --task "pure" \
-    --batch_size 64 \ 
+    --batch_size 64 \
     --n_epochs 30 \
     --lr 0.001 \
     --model "ResnetTransformer" \

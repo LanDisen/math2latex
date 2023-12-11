@@ -7,7 +7,7 @@ import os
 import time
 import argparse
 from data_preprocess.build_vocab import build_vocab
-from exp.exp import Exp
+from exp.Exp import Exp
 from utils.utils import set_seed
 
 if __name__ == "__main__":
@@ -21,10 +21,11 @@ if __name__ == "__main__":
     parser.add_argument("--n_heads", type=int, default=4, help="")
     parser.add_argument("--n_layers", type=int, default=3, help="")
     parser.add_argument("--dropout", type=float, default=0.2, help="")
-    parser.add_argument("--img_size", type=int, default=224, help="")
+    parser.add_argument("--img_size", type=int, default=224, help="") # image size
     parser.add_argument("--max_len", type=int, default=500, help="")
     parser.add_argument("--seed", type=int, default=2023, help="")
-    parser.add_argument('--sample', type=bool, default=False, help='') # False for training, True for sampling
+    parser.add_argument('--sample', type=bool, default=False, help='') # True: sampling
+    parser.add_argument('--test', type=bool, default=False, help='') # True: labeling for test set
     # path config
     parser.add_argument('--vocab_path', type=str, default="./vocab/vocab_plus.txt", help='')
     args = parser.parse_args()
@@ -49,6 +50,9 @@ if __name__ == "__main__":
     exp = Exp(args=args)
     if args.sample:
         exp.sample()
+    elif args.test:
+        # labeling for test set
+        exp.test()
     else:
         exp.train()
         print("over!")

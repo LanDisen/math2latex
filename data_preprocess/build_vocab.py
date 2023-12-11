@@ -26,7 +26,7 @@ def build_vocab(vocab_txt_file_path):
     vocab.add_word('<end>')
     vocab.add_word('<unk>')
     # vocab.add_word('[MASK]')
-    with open(vocab_txt_file_path, 'r') as f:
+    with open(vocab_txt_file_path, 'r', encoding='utf-8') as f:
         for word in f:
             # it is important to read until -1 because we must ignore the '\n'
             vocab.add_word(word[:-1])

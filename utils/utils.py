@@ -22,6 +22,15 @@ def set_seed(seed):
     torch.manual_seed(seed)
     np.random.seed(seed)
 
+def adjust_lr(optimizer, epoch, args):
+    '''学习率调整'''
+    lr_adjust = {epoch: args.lr * (0.8 ** ((epoch - 1) // 1))}
+    if epoch in lr_adjust.keys():
+        lr = lr_adjust[epoch]
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = lr
+        print('Updating learning rate to {}'.format(lr))
+    
 def triangular_mask(size):
     r'''
     上三角mask用于transformer decoders
@@ -73,8 +82,11 @@ def find_first(x: Tensor, element: Union[int, float], dim: int = 1) -> Tensor:
     return indices
 
 def remove_ignored(sentences, ignored_words):
+    '''
+    return: list
+    '''
     B = sentences.shape[0] # batch size
     ret_sentences = []
     for i in range(B):
         ret_sentences.append([token for token in sentences[i].tolist() if token not in ignored_words])
-    return ret_sentences
+    return ret_sentences # list shape: [B, L]
