@@ -3,3 +3,7 @@ __pycache__/
 dataset
 temp
 checkpoints
+
+# editor
+.idea
+.vscode

@@ -14,7 +14,7 @@ from PIL import Image
 import nltk
 from data_preprocess.build_vocab import build_vocab
 # Metrics
-import Levenshtein
+
 
 def set_seed(seed):
     '''设置随机种子'''
