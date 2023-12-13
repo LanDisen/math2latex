@@ -6,7 +6,7 @@ import torch.backends.cudnn as cudnn
 import numpy as np
 import cv2
 import time
-from models.MyYOLO import myYOLO
+from models.MyYolo import myYOLO
 
 
 def detection_collate(batch):

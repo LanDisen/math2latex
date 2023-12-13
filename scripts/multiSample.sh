@@ -10,4 +10,4 @@ python main.py \
     --img_size 224 \
     --dropout 0.2 \
     --seed 2023 \
-    --sample True
+    --multi_sample True

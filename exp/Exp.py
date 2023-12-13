@@ -12,9 +12,10 @@ from data_loader import ImageLabelDataset, get_data_loader
 from data_preprocess.build_vocab import build_vocab
 from utils.utils import remove_ignored
 from utils.metrics import bleu_score, exact_match_score, edit_distence
-from models import ResnetTransformer
-from myYolo.Infer import yoloInfer  
+from models import ResnetTransformer, MyYolo
+from myYolo.Infer import yoloInfer, BaseTransform  
 import cv2
+import random
 
 
 warnings.filterwarnings('ignore')
@@ -236,7 +237,7 @@ class Exp:
         with torch.no_grad():
             # image: [C, H, W]
             images = image.unsqueeze(0).to(self.device) # [B=1, C, H, W]
-            images = images.half()
+            # images = images.half()
             pred = self.model.predict(images)
             pred = remove_ignored(pred, ignored)
             tokens = self.model.tokens(pred[0], self.vocab)
@@ -254,28 +255,31 @@ class Exp:
         input_size = [input_size, input_size]
 
         # 加载数据集
-        data_dir = "./dataset/yolo"
+        root_path = "/root/autodl-tmp/resource"
 
         # 加载模型
         print("加载模型......")
-        net = myYOLO(self.device, input_size=input_size, num_classes=1, trainable=False)
+        net = MyYolo.myYOLO(self.device, input_size=input_size, num_classes=1, trainable=False)
 
         # 定义模型的位置
         trained_model = './checkpoints/myYolo/model_80.pth'
-        net.load_state_dict(torch.load(trained_model, map_location=device))
-        net.to(device).eval()
+        net.load_state_dict(torch.load(trained_model, map_location=self.device))
+        net.to(self.device).eval()
 
         # 设置识别框置信度
         visual_threshold = 0.4
         # 随机一张图片
+        random.seed(203)
         random_int = random.randint(0, 50656)
         pic_path = os.path.join(root_path, "PngImages", str(random_int) + ".png")
+        print("img_path is: ", pic_path)
         img = cv2.imread(pic_path)
         h, w, _ = img.shape
 
         # to tensor
+        transform = BaseTransform(input_size)
         x = torch.from_numpy(transform(img)[0][:, :, (2, 1, 0)]).permute(2, 0, 1)
-        x = x.unsqueeze(0).to(device)
+        x = x.unsqueeze(0).to(self.device)
 
         # forward
         bboxes, scores, cls_inds = net(x)
@@ -294,20 +298,20 @@ class Exp:
         for i, box in enumerate(bboxes):
             cls_indx = cls_inds[i]
             xmin, ymin, xmax, ymax = box
-            if scores[i] > thresh:
+            if scores[i] > visual_threshold:
                 ignored = [self.vocab('<start>'), 
                         self.vocab('<unk>'), 
                         self.vocab('<end>'), 
                         self.vocab('<pad>')] # 忽略的词
                 checkpoint_path = './checkpoints/' + self.args.setting + '/model.pth'
                 self.model.load_state_dict(torch.load(checkpoint_path))
-                image = Image.fromarray(img[ymin:ymax, xmin:xmax])
+                image = Image.fromarray(img[int(ymin):int(ymax), int(xmin):int(xmax)])
                 image = self.transform(image)
                 self.model.eval()
                 with torch.no_grad():
                     # image: [C, H, W]
                     images = image.unsqueeze(0).to(self.device) # [B=1, C, H, W]
-                    images = images.half()
+                    # images = images.half()
                     pred = self.model.predict(images)
                     pred = remove_ignored(pred, ignored)
                     tokens = self.model.tokens(pred[0], self.vocab)
@@ -317,8 +321,7 @@ class Exp:
                         sentence += token
                     print(sentence)
                     # cv2.putText(img, mess, (int(xmin), int(ymin - 5)), cv2.FONT_HERSHEY_SIMPLEX, 0.15, (0, 0, 0), 1)
-        cv2.imshow('detection', img)
-        key = cv2.waitKey(0)
-        if key == ord('q'):  # 如果按下 'q' 键，则退出循环
-            break   
+        # cv2.imshow('detection', img)
+        # key = cv2.waitKey(0)
+        
             

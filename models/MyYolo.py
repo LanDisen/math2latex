@@ -1,9 +1,9 @@
 import torch
 import torch.nn as nn
-from myYOLO.Modules import SPP, SAM, BottleneckCSP, Conv
-from myYOLO.Resnet import resnet18
+from myYolo.Modules import SPP, SAM, BottleneckCSP, Conv
+from myYolo.Resnet import resnet18
 import numpy as np
-from myYOLO import Tools
+from myYolo import Tools
 
 
 class myYOLO(nn.Module):

@@ -88,7 +88,7 @@ class Model(nn.Module):
         self.n_heads = args.n_heads
         self.max_len = args.max_len
         self.n_layers = args.n_layers
-        self.to_onnx = args.to_onnx
+        self.to_onnx = False
         self.vocab = build_vocab(args.vocab_path)
         self.num_classes = len(self.vocab)
         self.encoder = Encoder(self.dim, args.dropout)
