@@ -61,8 +61,8 @@ if __name__ == "__main__":
         # 开启半精度, 可以加快运行速度、减少GPU占用，并且只有不明显的accuracy损失。
         torch_model.half()
         torch_model.to(args.device).eval()
-        torch_model.load_state_dict(torch.load("checkpoints/ResnetTransformer_mix_d128_nh4_nl2_ep30/model.pth"))  #加载.pth文件
-        export_onnx_file = "../checkpoints/ResnetTransformer_mix_d128_nh4_nl2_ep30/model.onnx"
+        torch_model.load_state_dict(torch.load("checkpoints/ResnetTransformer_mix_d256_nh4_nl3_ep30/model.pth"))  #加载.pth文件
+        export_onnx_file = "../checkpoints/ResnetTransformer_mix_d256_nh4_nl3_ep30/model.onnx"
         batch_size = 1
         input_shape = (3, 224, 224)   # 模型的输入，根据训练时数据集的输入
         convert(export_onnx_file, args.device, torch_model, batch_size, input_shape)
