@@ -1,21 +1,19 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader, Dataset
-from torchvision import transforms, datasets, models
-from torchvision.datasets import ImageFolder
+from torchvision import transforms
 from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
-import math
 import os
 import time
 import warnings
 from data_loader import ImageLabelDataset, get_data_loader
 from data_preprocess.build_vocab import build_vocab
-from utils.utils import remove_ignored, adjust_lr
-from utils.metrics import bleu_score, exact_match_score, edit_distence, overall_score
+from utils.utils import remove_ignored
+from utils.metrics import bleu_score, exact_match_score, edit_distence
 from models import ResnetTransformer
+from pth2onnx import convert
 
 warnings.filterwarnings('ignore')
 
@@ -30,7 +28,9 @@ class Exp:
         with open(args.vocab_path, 'r', encoding='utf-8') as f:
             self.latex = f.read().split()
         self.device = args.device
-        self.model = self.model_dict[args.model].Model(self.args).to(self.device)
+        self.model = self.model_dict[args.model].Model(self.args)
+        self.model = self.model.half()  # 半精度
+        self.model = self.model.to(self.device)
         if args.task == "pure":
             train_mean = 0.930882
             train_std = 0.178370
@@ -234,6 +234,7 @@ class Exp:
         with torch.no_grad():
             # image: [C, H, W]
             images = image.unsqueeze(0).to(self.device) # [B=1, C, H, W]
+            images = images.half()
             pred = self.model.predict(images)
             pred = remove_ignored(pred, ignored)
             tokens = self.model.tokens(pred[0], self.vocab)
@@ -242,3 +243,11 @@ class Exp:
                 # token间不加空格
                 sentence += token
             print(sentence)
+
+    def to_onnx(self):
+        checkpoint_path = './checkpoints/' + self.args.setting + '/model.pth'
+        self.model.load_state_dict(torch.load(checkpoint_path))
+        export_onnx_pth = './checkpoints/' + self.args.setting + '/model.onnx'
+        batch_size = 1
+        input_shape = (3, self.args.img_size, self.args.img_size)  # 模型的输入，根据训练时数据集的输入
+        convert(export_onnx_pth, self.device, self.model, batch_size, input_shape)

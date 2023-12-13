@@ -1,4 +1,4 @@
-python main.py ^
+python pth2onnx.py ^
     --task "mix" ^
     --batch_size 8 ^
     --n_epochs 30 ^
@@ -10,4 +10,4 @@ python main.py ^
     --img_size 224 ^
     --dropout 0.2 ^
     --seed 2023 ^
-    --sample True 
+    --to_onnx True 

@@ -88,6 +88,7 @@ class Model(nn.Module):
         self.n_heads = args.n_heads
         self.max_len = args.max_len
         self.n_layers = args.n_layers
+        self.to_onnx = args.to_onnx
         self.vocab = build_vocab(args.vocab_path)
         self.num_classes = len(self.vocab)
         self.encoder = Encoder(self.dim, args.dropout)
@@ -97,15 +98,19 @@ class Model(nn.Module):
                                dropout=args.dropout)
         self.head = nn.Linear(self.dim, self.num_classes)
         
-    def forward(self, x, y, length=None):
-        # x: [B, C=1, H, W] images
-        # y: [B, L] word embeddings
-        x = self.encoder(x) # [H*W//1024, B, D]
-        output = self.decoder(x, y, length) # [L, B, D]
-        output = self.head(output) # [L, B, num_classes]
-        output = output.permute(1, 2, 0) # [B, num_classes, L]
-        # output = output.permute(1, 0, 2)
-        return output
+    def forward(self, x, y=None, length=None):
+        if self.to_onnx:
+            with torch.no_grad():
+                return self.predict(x)
+        else:
+            # x: [B, C=1, H, W] images
+            # y: [B, L] word embeddings
+            x = self.encoder(x) # [H*W//1024, B, D]
+            output = self.decoder(x, y, length) # [L, B, D]
+            output = self.head(output) # [L, B, num_classes]
+            output = output.permute(1, 2, 0) # [B, num_classes, L]
+            # output = output.permute(1, 0, 2)
+            return output
     
     def predict(self, images):
         # images: [B, C, H, W]
