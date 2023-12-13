@@ -6,7 +6,7 @@ import torch.backends.cudnn as cudnn
 import numpy as np
 import cv2
 import time
-from Model import myYOLO
+from models.MyYOLO import myYOLO
 
 
 def detection_collate(batch):
@@ -78,7 +78,7 @@ def test(net, device, testset, transform, thresh, class_colors=None, class_names
         # cv2.imwrite('test_images/' + args.dataset+ '3/' + str(index).zfill(6) +'.jpg', img)
 
 
-def infer(net, device, root_path, transform, thresh, class_colors=None, class_names=None):
+def yoloInfer(net, device, root_path, transform, thresh, class_colors=None, class_names=None):
     while True:
         random_int = random.randint(0, 50656)
         pic_path = os.path.join(root_path, "PngImages", str(random_int) + ".png")
@@ -161,7 +161,7 @@ if __name__ == '__main__':
     #      class_names=VOC_CLASSES,
     #      )
 
-    infer(net=net,
+    yoloInfer(net=net,
          device=device,
          root_path=data_dir,
          transform=BaseTransform(input_size),

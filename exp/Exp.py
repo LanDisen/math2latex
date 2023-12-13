@@ -13,7 +13,9 @@ from data_preprocess.build_vocab import build_vocab
 from utils.utils import remove_ignored
 from utils.metrics import bleu_score, exact_match_score, edit_distence
 from models import ResnetTransformer
-from pth2onnx import convert
+from myYolo.Infer import yoloInfer  
+import cv2
+
 
 warnings.filterwarnings('ignore')
 
@@ -29,7 +31,6 @@ class Exp:
             self.latex = f.read().split()
         self.device = args.device
         self.model = self.model_dict[args.model].Model(self.args)
-        self.model = self.model.half()  # 半精度
         self.model = self.model.to(self.device)
         if args.task == "pure":
             train_mean = 0.930882
@@ -216,6 +217,7 @@ class Exp:
         print(f"test time: {time.time() - start_time}")
         print("test end")
 
+    # 单个要识别latex的内容
     def sample(self):
         ignored = [self.vocab('<start>'), 
                    self.vocab('<unk>'), 
@@ -244,10 +246,79 @@ class Exp:
                 sentence += token
             print(sentence)
 
-    def to_onnx(self):
-        checkpoint_path = './checkpoints/' + self.args.setting + '/model.pth'
-        self.model.load_state_dict(torch.load(checkpoint_path))
-        export_onnx_pth = './checkpoints/' + self.args.setting + '/model.onnx'
-        batch_size = 1
-        input_shape = (3, self.args.img_size, self.args.img_size)  # 模型的输入，根据训练时数据集的输入
-        convert(export_onnx_pth, self.device, self.model, batch_size, input_shape)
+    # 多个要识别latex的内容
+    def multiSample(self):
+        # yolo的部分
+        # 设定输入的大小, 按照训练是的大小来
+        input_size = 416
+        input_size = [input_size, input_size]
+
+        # 加载数据集
+        data_dir = "./dataset/yolo"
+
+        # 加载模型
+        print("加载模型......")
+        net = myYOLO(self.device, input_size=input_size, num_classes=1, trainable=False)
+
+        # 定义模型的位置
+        trained_model = './checkpoints/myYolo/model_80.pth'
+        net.load_state_dict(torch.load(trained_model, map_location=device))
+        net.to(device).eval()
+
+        # 设置识别框置信度
+        visual_threshold = 0.4
+        # 随机一张图片
+        random_int = random.randint(0, 50656)
+        pic_path = os.path.join(root_path, "PngImages", str(random_int) + ".png")
+        img = cv2.imread(pic_path)
+        h, w, _ = img.shape
+
+        # to tensor
+        x = torch.from_numpy(transform(img)[0][:, :, (2, 1, 0)]).permute(2, 0, 1)
+        x = x.unsqueeze(0).to(device)
+
+        # forward
+        bboxes, scores, cls_inds = net(x)
+        
+        # 获取scale
+        scale = np.array([[w, h, w, h]])
+        # 将box放缩到原来的大小
+        bboxes *= scale
+
+        # img_processed = vis(img, bboxes, scores, cls_inds, thresh, class_colors, class_names)
+       
+            
+        # math2latex部分, 将识别到的box图片送进识别模型
+        # 先转成灰度
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        for i, box in enumerate(bboxes):
+            cls_indx = cls_inds[i]
+            xmin, ymin, xmax, ymax = box
+            if scores[i] > thresh:
+                ignored = [self.vocab('<start>'), 
+                        self.vocab('<unk>'), 
+                        self.vocab('<end>'), 
+                        self.vocab('<pad>')] # 忽略的词
+                checkpoint_path = './checkpoints/' + self.args.setting + '/model.pth'
+                self.model.load_state_dict(torch.load(checkpoint_path))
+                image = Image.fromarray(img[ymin:ymax, xmin:xmax])
+                image = self.transform(image)
+                self.model.eval()
+                with torch.no_grad():
+                    # image: [C, H, W]
+                    images = image.unsqueeze(0).to(self.device) # [B=1, C, H, W]
+                    images = images.half()
+                    pred = self.model.predict(images)
+                    pred = remove_ignored(pred, ignored)
+                    tokens = self.model.tokens(pred[0], self.vocab)
+                    sentence = ""
+                    for token in tokens:
+                        # token间不加空格
+                        sentence += token
+                    print(sentence)
+                    # cv2.putText(img, mess, (int(xmin), int(ymin - 5)), cv2.FONT_HERSHEY_SIMPLEX, 0.15, (0, 0, 0), 1)
+        cv2.imshow('detection', img)
+        key = cv2.waitKey(0)
+        if key == ord('q'):  # 如果按下 'q' 键，则退出循环
+            break   
+            
