@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from myYolo.Modules import SPP, SAM, BottleneckCSP, Conv
-from myYolo.Resnet import resnet18
+from myYolo.Resnet import resnet18, resnet50
 import numpy as np
 from myYolo import Tools
 
@@ -23,7 +23,7 @@ class myYOLO(nn.Module):
         self.scale_torch = torch.tensor(self.scale.copy(), device=device).float()
 
         # resnet18
-        self.backbone = resnet18(pretrained=True)
+        self.backbone = resnet50(pretrained=True)
 
         # neck
         self.SPP = nn.Sequential(
