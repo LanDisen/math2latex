@@ -5,6 +5,8 @@
 - python 3.8.13
 - torch 2.0.1
 - torchvision 0.15.2
+- opencv-python
+- onnx
 
 ## How to use?
 

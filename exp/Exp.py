@@ -21,6 +21,8 @@ from layers.MLM import MLM # pretrain
 from layers.yolo.Infer import yoloInfer, BaseTransform, vis  
 import cv2
 import random
+from cnocr import CnOcr
+from data_loader import FMM_func
 
 warnings.filterwarnings('ignore')
 
@@ -104,8 +106,8 @@ class Exp:
                 #     break
         print(f"dev time: {time.time() - start_time}")
         avg_loss = np.average(total_loss)
-        predictions = [self.model.tokens(pred, self.vocab) for pred in preds]
-        trues = [self.model.tokens(label.tolist(), self.vocab) for label in trues]
+        predictions = [self.model.tokens(pred, self.vocab).replace(" ", "") for pred in preds]
+        trues = [self.model.tokens(label.tolist(), self.vocab).replace(" ", "") for label in trues]
         # metrics
         score1 = bleu_score(trues, predictions)
         score2 = edit_distence(trues, predictions)
@@ -243,14 +245,15 @@ class Exp:
         self.model.eval()
         with torch.no_grad():
             # image: [C, H, W]
-            images = image.unsqueeze(0).to(self.device) # [B=1, C, H, W]
-            pred = self.model.predict(images)
-            pred = remove_ignored(pred, ignored)
-            tokens = self.model.tokens(pred[0], self.vocab)
-            sentence = ""
-            for token in tokens:
-                # token间不加空格
-                sentence += token
+            # images = image.unsqueeze(0).to(self.device) # [B=1, C, H, W]
+            # pred = self.model.predict(images)
+            # pred = remove_ignored(pred, ignored)
+            # tokens = self.model.tokens(pred[0], self.vocab)
+            # sentence = ""
+            # for token in tokens:
+            #     # token间不加空格
+            #     sentence += token
+            sentence = self.model.sample(image)
             print(sentence)
     
     # 多个要识别latex的内容
@@ -270,7 +273,7 @@ class Exp:
 
         # 定义模型的位置
         # trained_model = './checkpoints/yolo/model_resnet50_s416_lc130.pth'  好像没有原来的好
-        trained_model = './checkpoints/yolo/model_80.pth'
+        trained_model = './checkpoints/yolo/yolo_model.pth'
         net.load_state_dict(torch.load(trained_model, map_location=self.device))
         net.to(self.device).eval()
 
@@ -301,8 +304,6 @@ class Exp:
         bboxes *= scale
 
         # img_processed = vis(img, bboxes, scores, cls_inds, thresh, class_colors, class_names)
-       
-            
         # math2latex部分, 将识别到的box图片送进识别模型
         # 先转成灰度
         img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -335,73 +336,6 @@ class Exp:
                     # cv2.putText(img, sentence, (int(xmin), int(ymin - 5)), cv2.FONT_HERSHEY_SIMPLEX, 0.15, (0, 0, 0), 1)
                         
         cv2.imwrite(f'./dataset/out/{pic_name}', img)
-        
-              
-
-    # split word and formula
-    def splitWordAndFormula(self):
-         # yolo的部分
-        # 设定输入的大小, 按照训练是的大小来
-        input_size = 416
-        input_size = [input_size, input_size]
-
-        # 加载数据集
-        # root_path = "/root/autodl-tmp/resource"
-        root_path = "./dataset/data_mix/test/images/"
-
-        # 加载模型
-        print("loading models......")
-        net = Yolo.myYOLO(self.device, input_size=input_size, num_classes=1, trainable=False)
-
-        # 定义模型的位置
-        # trained_model = './checkpoints/yolo/model_resnet50_s416_lc130.pth'  好像没有原来的好
-        trained_model = './checkpoints/yolo/model_80.pth'
-        net.load_state_dict(torch.load(trained_model, map_location=self.device))
-        net.to(self.device).eval()
-
-        # 设置识别框置信度
-        visual_threshold = 0.4
-        # 随机一张图片
-        random.seed(2023)
-        random_int = random.randint(0, 50656)
-        # pic_path = os.path.join(root_path, "PngImages", str(random_int) + ".png")
-        pic_name = "15893.png"
-        pic_path = os.path.join(root_path, pic_name)
-        print("img_path is: ", pic_path)
-        img = cv2.imread(pic_path)
-        h, w, _ = img.shape
-        # to tensor
-        transform = BaseTransform(input_size)
-        x = torch.from_numpy(transform(img)[0][:, :, (2, 1, 0)]).permute(2, 0, 1)
-        x = x.unsqueeze(0).to(self.device)
-
-        # forward
-        bboxes, scores, cls_inds = net(x)
-        # 设置宽度缩放系数
-        longer = 0.1
-        # 获取scale
-        scale = np.array([[w * (1 - longer) , h, w * (1 + longer), h]])
-        # 将box放缩到原来的大小
-        bboxes *= scale
-
-        # math2latex部分, 将识别到的box图片送进识别模型
-        # 返回的字典
-        ret_dic = {"word":[], "formula":[] }  
-        for i, box in enumerate(bboxes):
-            if scores[i] > visual_threshold:
-                # ret_dic["formula"].append([int(xmin), int(ymin),  int(xmax), int(ymax)])
-                ret_dic["formula"].append(box)
-        rightbox = ret_dic["formula"]
-        rightbox = sorted(rightbox, key=lambda x: x[0]) 
-        last_x_max = 0
-        for i, box in enumerate(rightbox):
-            xmin, ymin, xmax, ymax = box
-            ret_dic["word"].append(np.array([last_x_max ,ymin, xmin ,ymax]))
-            last_x_max = xmax
-            if i == len(rightbox) - 1 and xmax < w:
-               ret_dic["word"].append(np.array([xmax ,ymin, w ,ymax]))    
-        # print(ret_dic)       
-        return ret_dic
 
     def pretrain(self):
         optimizer = optim.Adam(self.model.parameters(), lr=self.args.lr) # 优化器
@@ -464,3 +398,97 @@ class Exp:
         print("finetune start")
         self.train() 
         print("finetune end")
+
+    def yolo_dev(self):
+        print("yolo_dev start")
+        path = "./dataset/data_mix/"
+        flag = "dev"
+        images = sorted(os.listdir(path + flag + "/images"))
+        labels = sorted(os.listdir(path + flag + "/labels"))
+        # load models
+        model_args = self.args
+        model_args.model = "ResnetTransformer"
+        model_args.task = "pure"
+        model_args.vocab_path = "./vocab/vocab_plus.txt"
+        model_setting = "{}_{}_d{}_nh{}_nl{}_ep{}".format(
+            model_args.model,
+            model_args.task, # [pure, mix]
+            model_args.dim,
+            model_args.n_heads,
+            model_args.n_layers,
+            model_args.n_epochs
+        )
+        model_args.setting = model_setting
+        # ResnetTransformer
+        model = self.model_dict[model_args.model].Model(model_args).to(self.device)
+        model_path = "./checkpoints/train/ResnetTransformer_pure_d256_nh4_nl3_ep30/model.pth"
+        model.load_state_dict(torch.load((model_path)))
+        ocr = CnOcr()
+        yolo_model = Yolo.myYOLO(self.device, input_size=[416, 416], num_classes=1, trainable=False).to(self.device)
+        yolo_path = "./checkpoints/yolo/yolo_model.pth"
+        yolo_model.load_state_dict(torch.load(yolo_path))
+        model.eval()
+        yolo_model.eval()
+        preds = []
+        trues = []
+        # load images and labels
+        for k in range(len(labels)):
+            label_path = path + flag + "/labels/" + labels[k]
+            with open(label_path) as f:
+                l = [line.strip() for line in f.readlines()] # 去除所有的"\n"
+            label = ""
+            for line in l:
+                label += line
+            trues.append(label.replace(" ", ""))
+            tokens = FMM_func(self.latex, label)
+            label_ids = []
+            label_ids.append(self.vocab('<start>'))
+            label_ids.extend([self.vocab(token) for token in tokens])
+            label_ids.append(self.vocab('<end>'))
+            label = torch.Tensor(label_ids) # 转换tensor
+            # process image
+            image_path = path + flag + "/images/" + images[k]
+            image = np.array(Image.open(image_path).convert("L"))
+            # yolo box
+            box_dict = yolo_model.split_text_formula(image_path)
+            text_list = box_dict["word"]
+            formula_list = box_dict["formula"]
+            i, j = 0, 0
+            sentence = ""
+            while i < len(text_list) or j < len(formula_list):
+                if i < len(text_list):
+                    box1 = text_list[i] # [xmin, ymin, xmax, ymax]
+                else:
+                    box1 = np.array([10000, 0, 0, 0])
+                if j < len(formula_list):
+                    box2 = formula_list[j]
+                else:
+                    box2 = np.array([10000, 0, 0, 0])
+                if box1[0] < box2[0]:
+                    # text
+                    box = box1
+                    i += 1
+                else:
+                    # formula
+                    box = box2
+                    j += 1
+                # split image
+                cur_image = image[:, int(box[0]): int(box[2])+1]
+                if i > j:
+                    tokens = ocr.ocr_for_single_line(cur_image)["text"].replace(" ", "")
+                else:
+                    cur_image = Image.fromarray(image).convert('L')
+                    cur_image = self.transform(cur_image).to(self.device)
+                    tokens = model.sample(cur_image)
+                sentence += tokens
+            preds.append(sentence)
+        
+        score1 = bleu_score(trues, preds)
+        score2 = edit_distence(trues, preds)
+        score3 = exact_match_score(trues, preds)
+        overall = (score1 + score2 + score3) / 3
+        print(f"bleu_score: {score1:.6f}")
+        print(f"edit_distence: {score2:.6f}")
+        print(f"exact_match_score: {score3:.6f}")
+        print(f"overall_score: {overall:.6f}")
+        print("yolo_dev end")

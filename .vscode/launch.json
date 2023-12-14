@@ -10,7 +10,87 @@
             "request": "launch",
             "program": "main.py",
             "console": "integratedTerminal",
-            "justMyCode": true
-        }
+            "justMyCode": true,
+            "args": [
+                "--task", "mix",
+                "--model", "ResnetGPT",
+                "--dim", "256",
+                "--n_epochs", "10",
+                "--lr", "0.001",
+                "--n_heads", "4", 
+                "--batch_size", "32", 
+                "--dropout", "0.1",
+            ]
+        },
+        {
+            "name": "Python: test",
+            "type": "python",
+            "request": "launch",
+            "program": "test.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": []
+        },
+        {
+            "name": "Python: pretrain",
+            "type": "python",
+            "request": "launch",
+            "program": "main.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--task", "mix",
+                "--model", "ResnetTransformer",
+                "--dim", "512",
+                "--n_epochs", "1",
+                "--lr", "0.001",
+                "--n_layers", "3",
+                "--n_heads", "8", 
+                "--batch_size", "8", 
+                "--dropout", "0.2",
+                "--pretrain", "True",
+            ]
+        },
+        {
+            "name": "Python: multi_sample",
+            "type": "python",
+            "request": "launch",
+            "program": "main.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--task", "pure",
+                "--model", "ResnetTransformer",
+                "--dim", "256",
+                "--n_epochs", "30",
+                "--lr", "0.001",
+                "--n_layers", "3",
+                "--n_heads", "4", 
+                "--batch_size", "32", 
+                "--dropout", "0.2",
+                "--multi_sample", "True"
+            ]
+        },
+        {
+            "name": "Python: yolo",
+            "type": "python",
+            "request": "launch",
+            "program": "main.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--task", "mix",
+                "--model", "ResnetTransformer",
+                "--dim", "256",
+                "--n_epochs", "30",
+                "--lr", "0.001",
+                "--n_layers", "3",
+                "--n_heads", "4", 
+                "--batch_size", "32", 
+                "--dropout", "0.2",
+                "--device_id", "1",
+                "--yolo", "True"
+            ]
+        },
     ]
 }

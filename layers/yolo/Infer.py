@@ -6,7 +6,7 @@ import torch.backends.cudnn as cudnn
 import numpy as np
 import cv2
 import time
-from models.Yolo import myYOLO
+# from models.Yolo import myYOLO
 
 
 def detection_collate(batch):
@@ -110,60 +110,60 @@ def yoloInfer(net, device, root_path, transform, thresh, class_colors=None, clas
         # cv2.imwrite('test_images/' + args.dataset+ '3/' + str(index).zfill(6) +'.jpg', img)
 
 
-if __name__ == '__main__':
-    # cuda
-    if torch.cuda.is_available():
-        print("cuda")
-        device = torch.device("cuda:0")
-    else:
-        print("cpu")
-        device = torch.device("cpu")
+# if __name__ == '__main__':
+#     # cuda
+#     if torch.cuda.is_available():
+#         print("cuda")
+#         device = torch.device("cuda:0")
+#     else:
+#         print("cpu")
+#         device = torch.device("cpu")
 
-    # 设定输入的大小, 按照训练是的大小来
-    input_size = 416
-    input_size = [input_size, input_size]
+#     # 设定输入的大小, 按照训练是的大小来
+#     input_size = 416
+#     input_size = [input_size, input_size]
 
-    # 加载数据集
-    print("加载数据集......")
-    data_dir = "../../resource/yolo"
-    num_classes = 1
-    # dataset = VOCDetection(root=data_dir, img_size=input_size[0], transform=None)
+#     # 加载数据集
+#     print("加载数据集......")
+#     data_dir = "../../resource/yolo"
+#     num_classes = 1
+#     # dataset = VOCDetection(root=data_dir, img_size=input_size[0], transform=None)
 
-    class_colors = [(np.random.randint(255), np.random.randint(255), np.random.randint(255)) for _ in
-                    range(num_classes)]
+#     class_colors = [(np.random.randint(255), np.random.randint(255), np.random.randint(255)) for _ in
+#                     range(num_classes)]
 
-    # 加载模型
-    print("加载模型......")
-    net = myYOLO(device, input_size=input_size, num_classes=num_classes, trainable=False)
+#     # 加载模型
+#     print("加载模型......")
+#     net = myYOLO(device, input_size=input_size, num_classes=num_classes, trainable=False)
 
-    # 定义模型的位置
-    trained_model = "./out/model_80.pth"
-    net.load_state_dict(torch.load(trained_model, map_location=device))
-    net.to(device).eval()
-    print("加载模型完成")
+#     # 定义模型的位置
+#     trained_model = "./out/model_80.pth"
+#     net.load_state_dict(torch.load(trained_model, map_location=device))
+#     net.to(device).eval()
+#     print("加载模型完成")
 
-    # 设置置信度
-    visual_threshold = 0.4
-    VOC_CLASSES = (  # always index 0
-        'math',)
+#     # 设置置信度
+#     visual_threshold = 0.4
+#     VOC_CLASSES = (  # always index 0
+#         'math',)
 
-    # 开始推理
-    print("---------------------------------------------")
-    print("开始推理")
-    # test(net=net,
-    #      device=device,
-    #      testset=dataset,
-    #      transform=BaseTransform(input_size),
-    #      thresh=visual_threshold,
-    #      class_colors=class_colors,
-    #      class_names=VOC_CLASSES,
-    #      )
+#     # 开始推理
+#     print("---------------------------------------------")
+#     print("开始推理")
+#     # test(net=net,
+#     #      device=device,
+#     #      testset=dataset,
+#     #      transform=BaseTransform(input_size),
+#     #      thresh=visual_threshold,
+#     #      class_colors=class_colors,
+#     #      class_names=VOC_CLASSES,
+#     #      )
 
-    yoloInfer(net=net,
-         device=device,
-         root_path=data_dir,
-         transform=BaseTransform(input_size),
-         thresh=visual_threshold,
-         class_colors=class_colors,
-         class_names=VOC_CLASSES,
-    )
+#     yoloInfer(net=net,
+#          device=device,
+#          root_path=data_dir,
+#          transform=BaseTransform(input_size),
+#          thresh=visual_threshold,
+#          class_colors=class_colors,
+#          class_names=VOC_CLASSES,
+#     )

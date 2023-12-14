@@ -1,1 +1,3 @@
 python-Levenshtein
+opencv-python
+onnx

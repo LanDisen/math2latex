@@ -33,16 +33,17 @@ if __name__ == "__main__":
     parser.add_argument("--finetune", type=bool, default=False, help="")
     # obj detection
     parser.add_argument('--multi_sample', type=bool, default=False, help='')  # True: sampling
+    parser.add_argument("--yolo", type=bool, default=False, help="")
     # path config
     parser.add_argument('--vocab_path', type=str, default="./vocab/vocab_plus.txt", help='')
     args = parser.parse_args()
     args.device = 'cuda:' + str(args.device_id) if torch.cuda.is_available() else 'cpu'
     if args.task == "mix":
-        # 词表包括中文
+        # include Chinese
         args.vocab_path = "./vocab/vocab_plus_cn.txt"
     print("Args:")
     print(args)
-    set_seed(args.seed) # 设置随机种子
+    set_seed(args.seed) # set random seed
 
     setting = "{}_{}_d{}_nh{}_nl{}_ep{}".format(
         args.model,
@@ -59,6 +60,8 @@ if __name__ == "__main__":
         exp.sample()
     elif args.multi_sample:
         exp.multi_sample()
+    elif args.yolo:
+        exp.yolo_dev()
     elif args.test:
         # labeling for test set
         exp.test()
