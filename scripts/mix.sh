@@ -9,5 +9,4 @@ python -u main.py \
     --n_heads 4 \
     --img_size 224 \
     --dropout 0.2 \
-    --seed 2023 \
-    --multi_sample True 
+    --seed 2023

@@ -275,12 +275,12 @@ class Exp:
         net.to(self.device).eval()
 
         # 设置识别框置信度
-        visual_threshold = 0.4
+        visual_threshold = 0.5
         # 随机一张图片
         random.seed(2023)
         random_int = random.randint(0, 50656)
         # pic_path = os.path.join(root_path, "PngImages", str(random_int) + ".png")
-        pic_name = "37.png"
+        pic_name = "70431.png"
         pic_path = os.path.join(root_path, pic_name)
         print("img_path is: ", pic_path)
         img = cv2.imread(pic_path)
