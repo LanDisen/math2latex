@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from layers.yolo.Modules import SPP, SAM, BottleneckCSP, Conv
-from layers.yolo.Resnet import resnet18
+from layers.yolo.Resnet import resnet18, resnet50
 import numpy as np
 from layers.yolo import Tools
 

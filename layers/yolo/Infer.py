@@ -36,17 +36,15 @@ class BaseTransform:
         return base_transform(image, self.size, self.mean, self.std), boxes, labels
 
 
-def vis(img, bboxes, scores, cls_inds, thresh, class_colors, class_names):
-    for i, box in enumerate(bboxes):
-        cls_indx = cls_inds[i]
-        xmin, ymin, xmax, ymax = box
-        if scores[i] > thresh:
-            cv2.rectangle(img, (int(xmin), int(ymin)), (int(xmax), int(ymax)), class_colors[int(cls_indx)], 1)
-            cv2.rectangle(img, (int(xmin), int(abs(ymin) - 20)), (int(xmax), int(ymin)),
-                          class_colors[int(cls_indx)], -1)
-            mess = '%s' % (class_names[int(cls_indx)])
-            cv2.putText(img, mess, (int(xmin), int(ymin - 5)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
+def vis(img, box):
+    class_colors = (56, 133, 166) 
+    xmin, ymin, xmax, ymax = box
 
+    cv2.rectangle(img, (int(xmin), int(ymin)), (int(xmax), int(ymax)), class_colors, 1)
+    cv2.rectangle(img, (int(xmin), int(abs(ymin) - 20)), (int(xmax), int(ymin)),
+                    class_colors, -1)
+    # mess = '%s' % (class_names[int(cls_indx)])
+    # cv2.putText(img, mess, (int(xmin), int(ymin - 5)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
     return img
 
 

@@ -18,7 +18,7 @@ from utils.metrics import bleu_score, exact_match_score, edit_distence, overall_
 from models import ResnetTransformer, Yolo
 from layers.MLM import MLM # pretrain
 # yolo
-from layers.yolo.Infer import yoloInfer, BaseTransform  
+from layers.yolo.Infer import yoloInfer, BaseTransform, vis  
 import cv2
 import random
 
@@ -269,6 +269,7 @@ class Exp:
         net = Yolo.myYOLO(self.device, input_size=input_size, num_classes=1, trainable=False)
 
         # 定义模型的位置
+        # trained_model = './checkpoints/yolo/model_resnet50_s416_lc130.pth'  好像没有原来的好
         trained_model = './checkpoints/yolo/model_80.pth'
         net.load_state_dict(torch.load(trained_model, map_location=self.device))
         net.to(self.device).eval()
@@ -279,7 +280,8 @@ class Exp:
         random.seed(2023)
         random_int = random.randint(0, 50656)
         # pic_path = os.path.join(root_path, "PngImages", str(random_int) + ".png")
-        pic_path = os.path.join(root_path, "675.png")
+        pic_name = "37.png"
+        pic_path = os.path.join(root_path, pic_name)
         print("img_path is: ", pic_path)
         img = cv2.imread(pic_path)
         h, w, _ = img.shape
@@ -291,9 +293,10 @@ class Exp:
 
         # forward
         bboxes, scores, cls_inds = net(x)
-        
+        # 设置宽度缩放系数
+        longer = 0.1
         # 获取scale
-        scale = np.array([[w, h, w, h]])
+        scale = np.array([[w * (1 - longer) , h, w * (1 + longer), h]])
         # 将box放缩到原来的大小
         bboxes *= scale
 
@@ -328,9 +331,77 @@ class Exp:
                         # token间不加空格
                         sentence += token
                     print(sentence)
-                    # cv2.putText(img, mess, (int(xmin), int(ymin - 5)), cv2.FONT_HERSHEY_SIMPLEX, 0.15, (0, 0, 0), 1)
-        # cv2.imshow('detection', img)
-        # key = cv2.waitKey(0)
+                    vis(img, box)
+                    # cv2.putText(img, sentence, (int(xmin), int(ymin - 5)), cv2.FONT_HERSHEY_SIMPLEX, 0.15, (0, 0, 0), 1)
+                        
+        cv2.imwrite(f'./dataset/out/{pic_name}', img)
+        
+              
+
+    # split word and formula
+    def splitWordAndFormula(self):
+         # yolo的部分
+        # 设定输入的大小, 按照训练是的大小来
+        input_size = 416
+        input_size = [input_size, input_size]
+
+        # 加载数据集
+        # root_path = "/root/autodl-tmp/resource"
+        root_path = "./dataset/data_mix/test/images/"
+
+        # 加载模型
+        print("loading models......")
+        net = Yolo.myYOLO(self.device, input_size=input_size, num_classes=1, trainable=False)
+
+        # 定义模型的位置
+        # trained_model = './checkpoints/yolo/model_resnet50_s416_lc130.pth'  好像没有原来的好
+        trained_model = './checkpoints/yolo/model_80.pth'
+        net.load_state_dict(torch.load(trained_model, map_location=self.device))
+        net.to(self.device).eval()
+
+        # 设置识别框置信度
+        visual_threshold = 0.4
+        # 随机一张图片
+        random.seed(2023)
+        random_int = random.randint(0, 50656)
+        # pic_path = os.path.join(root_path, "PngImages", str(random_int) + ".png")
+        pic_name = "15893.png"
+        pic_path = os.path.join(root_path, pic_name)
+        print("img_path is: ", pic_path)
+        img = cv2.imread(pic_path)
+        h, w, _ = img.shape
+        # to tensor
+        transform = BaseTransform(input_size)
+        x = torch.from_numpy(transform(img)[0][:, :, (2, 1, 0)]).permute(2, 0, 1)
+        x = x.unsqueeze(0).to(self.device)
+
+        # forward
+        bboxes, scores, cls_inds = net(x)
+        # 设置宽度缩放系数
+        longer = 0.1
+        # 获取scale
+        scale = np.array([[w * (1 - longer) , h, w * (1 + longer), h]])
+        # 将box放缩到原来的大小
+        bboxes *= scale
+
+        # math2latex部分, 将识别到的box图片送进识别模型
+        # 返回的字典
+        ret_dic = {"word":[], "formula":[] }  
+        for i, box in enumerate(bboxes):
+            if scores[i] > visual_threshold:
+                # ret_dic["formula"].append([int(xmin), int(ymin),  int(xmax), int(ymax)])
+                ret_dic["formula"].append(box)
+        rightbox = ret_dic["formula"]
+        rightbox = sorted(rightbox, key=lambda x: x[0]) 
+        last_x_max = 0
+        for i, box in enumerate(rightbox):
+            xmin, ymin, xmax, ymax = box
+            ret_dic["word"].append(np.array([last_x_max ,ymin, xmin ,ymax]))
+            last_x_max = xmax
+            if i == len(rightbox) - 1 and xmax < w:
+               ret_dic["word"].append(np.array([xmax ,ymin, w ,ymax]))    
+        # print(ret_dic)       
+        return ret_dic
 
     def pretrain(self):
         optimizer = optim.Adam(self.model.parameters(), lr=self.args.lr) # 优化器
