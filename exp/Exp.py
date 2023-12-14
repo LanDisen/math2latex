@@ -15,7 +15,7 @@ from data_loader import ImageLabelDataset, get_data_loader
 from data_preprocess.build_vocab import build_vocab
 from utils.utils import remove_ignored, adjust_lr
 from utils.metrics import bleu_score, exact_match_score, edit_distence, overall_score
-from models import ResnetTransformer, Yolo
+from models import ResnetTransformer, Yolo, ViT
 from layers.MLM import MLM # pretrain
 # yolo
 from layers.yolo.Infer import yoloInfer, BaseTransform, vis  
@@ -32,6 +32,7 @@ class Exp:
         # add models
         self.model_dict = {
             "ResnetTransformer": ResnetTransformer,
+            "ViT": ViT,
         }
         self.vocab = build_vocab(args.vocab_path)
         if self.args.pretrain or self.args.finetune:
