@@ -1,12 +1,16 @@
 # math2latex
 
-## Environment
+A text and mathematical formula hybrid recognizer
 
-- python 3.8.13
-- torch 2.0.1
-- torchvision 0.15.2
-- opencv-python
-- onnx
+## Model Architecture
+
+**Math2LaTeX** uses resnet18 to extract image features and transformer for LaTeX generation.
+
+![img](img/ResnetTransformer.png)
+
+**Masked Language Modeling(MLM)** can helps the model improve its context understanding.
+
+![img](img/MLM.png)
 
 ## How to use?
 
@@ -28,8 +32,33 @@ First, download the datasets in the `dataset` dir, and modify the dir name:
 │       ├── dev_ids.txt
 │       ├── test_ids.txt
 │       └── train_ids.txt
+│── checkpoints
+│── data_preprocess
+│── exp
+│── img
+│── layers
+│── models
+│── scripts
+│── utils
+│── vocab
+│   ├── vocab_cn.txt
+│   ├── vocab_plus_cn.txt
+│   ├── vocab_plus.txt
+│   └── vocab.txt
+│── .gitignore
+│── data_loader.py
+│── main.py
+│── README.md
+│── requirements.txt
+└── ui.py
+
 ```
- 
+
+Then install the requirements:
+
+```sh
+pip3 install requirements.txt
+```
 
 If you want to train the model:
 
@@ -39,7 +68,7 @@ python -u main.py \
     --batch_size 64 \
     --n_epochs 30 \
     --lr 0.001 \
-    --model "ResnetTransformer" \
+    --model "ResnetTransformer" \ 
     --dim 256 \
     --n_layers 3 \
     --n_heads 4 \
@@ -51,14 +80,7 @@ python -u main.py \
 or run the script:
 
 ```sh
-nohup ./scripts/pure.py > pure_log.txt &
-# nohup ./scripts/mix.py > mix_log.txt & # for mix dataset
-```
-
-If you want to sample an image for testing(you should modify the image path in the src code):
-
-```sh
-python main.py --sample True
+nohup ./scripts/ResnetTransformer.py > log.txt &
 ```
 
 Remember modify the settings like `batch_size` in `scripts/main.sh`
