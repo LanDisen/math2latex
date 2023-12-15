@@ -1,3 +1,9 @@
 python-Levenshtein
+torch
+numpy
+matplotlib
+nltk
 opencv-python
 onnx
+cnocr
+transformers
