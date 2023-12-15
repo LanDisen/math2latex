@@ -6,42 +6,47 @@ import math
 from data_preprocess.build_vocab import build_vocab
 from layers.Embed import PositionalEncoding1D, PositionalEncoding2D
 from utils.utils import triangular_mask, pad_mask, find_first
-from transformers import ViTForImageClassification
+from transformers import ViTForImageClassification, ViTConfig
 import math
-
 
 class Encoder(nn.Module):
     def __init__(self, dim, dropout=0.1):
         super().__init__()
-        local_path = "F:/googlevit-base-patch16-224"  # 预训练模型文件夹路径
-        self.vit_model = ViTForImageClassification.from_pretrained(local_path)
+        # local_path = "F:/googlevit-base-patch16-224"  # 预训练模型文件夹路径
+        self.dim = dim
+        vit_config = ViTConfig(hidden_size=dim, 
+                               num_channels=1, 
+                               num_hidden_layers=3,
+                               num_attention_heads=4,
+                               hidden_dropout_prob=dropout)
+        # vit_path = "./checkpoints/googlevit-base-patch16-224"
+        self.vit_model = ViTForImageClassification(config=vit_config)
         self.vit_model.classifier = nn.Identity()  # 去除分类器
-        print(self.vit_model)
-        self.linear_layer = nn.Linear(768, dim)
-        self.dropout = nn.Dropout(dropout)
+        # print(self.vit_model)
+        # self.linear_layer = nn.Linear(768, dim)
+        # self.dropout = nn.Dropout(dropout)
 
     def forward(self, x: torch.Tensor):
         # x: [B, C=1, H=224, W=224]
         # x是输入图片的张量，B: batch_size, C:通道(灰度图是1, RGB是3), H:图片高度, W:图片宽度
-        x = torch.cat([x]*3, dim=1)
-        hidden_states = self.vit_model(x, output_hidden_states=True)[
-            "hidden_states"]
+        # x = torch.cat([x]*3, dim=1)
+        # x = x.repeat(1, 3, 1, 1)
+        hidden_states = self.vit_model(x, output_hidden_states=True)["hidden_states"]
         x = hidden_states[-1]
         x = x.permute(1, 0, 2).contiguous()
-        x = self.linear_layer(x)
+        # x = self.linear_layer(x)
+        x = x[1:] # remove CLS token
         return x  # [H*W//1024, B, D]
 
 
 class Decoder(nn.Module):
     r'''
     Transformer Decoder
-
     Args: 
         dim:
         num_classes:
         max_len
     '''
-
     def __init__(self, dim, n_heads, n_layers, max_len, num_classes, dropout=0.1):
         super().__init__()
         self.dim = dim
